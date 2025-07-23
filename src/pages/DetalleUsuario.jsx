@@ -10,10 +10,11 @@ const DetalleUsuario = ({ data }) => {
   const { userId, fecha, frecuencia, lat, lng } = data;
 
   // Simulamos datos múltiples con la misma frecuencia
-  const datosTiempo = Array.from({ length: 10 }, (_, i) => ({
-    tiempo: `T${i + 1}`,
-    frecuencia: frecuencia + Math.floor(Math.random() * 10 - 5)
-  }));
+ const datosTiempo = Array.from({ length: 10 }, (_, i) => ({
+  tiempo: `T${i + 1}`,
+  frecuencia: data.frecuencia + Math.floor(Math.random() * 10 - 5)
+}));
+  
 
   const productividadPorHorario = [
     { hora: "7am-10am", valor: 32 },
