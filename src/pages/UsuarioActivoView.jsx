@@ -16,7 +16,6 @@ const baseURL = api.defaults.baseURL;
 const socketURL = baseURL.endsWith("/api") ? baseURL.slice(0, -4) : baseURL;
 const socket = io(socketURL);
 
-
 const containerStyle = {
   width: "100%",
   height: "300px",
@@ -25,18 +24,19 @@ const containerStyle = {
 };
 
 const iconVerde = "http://maps.google.com/mapfiles/ms/icons/green-dot.png";
+const iconNaranja = "http://maps.google.com/mapfiles/ms/icons/orange-dot.png"; // naranja fuerte
 const iconRojo = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-const iconNaranja = "http://maps.google.com/mapfiles/ms/icons/orange-dot.png";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AA00FF"];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF6500", "#AA00FF"]; // El naranja fuerte es #FF6500
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || "AIzaSyDKiC0rCfhrbZA6a_XQjxENvPRSHxUnLqw";
 
 const UsuarioActivoView = () => {
-  const [usuarios, setUsuarios] = useState([]);
+  const [usuario, setUsuario] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
+  // Función que muestra cada alerta como notificación individual
   const mostrarAlertaCritica = (data) => {
     const { usuario, eventosCriticos, alertas } = data;
 
@@ -52,7 +52,7 @@ const UsuarioActivoView = () => {
         pauseOnHover: true,
         draggable: true,
         theme: "colored",
-        toastId: `general_alerta_${usuario.nombre}`,
+        toastId: `general_alerta_${usuario.nombre}`, 
       }
     );
 
@@ -137,21 +137,21 @@ const UsuarioActivoView = () => {
     });
 
     socket.on("usuario-activo-update", (data) => {
-  console.log("Evento socket recibido:", data);
+      console.log("Evento socket recibido:", data);
 
-  // Aseguramos que data sea un array
-  const usuariosRecibidos = Array.isArray(data) ? data : [data];
+      if (!data) {
+        setUsuario(null);
+        setLoading(false);
+        return;
+      }
 
-  setUsuario(usuariosRecibidos);
-  setLoading(false);
+      setUsuario(data);
+      setLoading(false);
 
-  usuariosRecibidos.forEach(u => {
-    if (u.eventosCriticos?.length > 0) {
-      mostrarAlertaCritica(u);
-    }
-  });
-});
-
+      if (data.eventosCriticos?.length > 0) {
+        mostrarAlertaCritica(data);
+      }
+    });
 
     socket.on("disconnect", () => {
       console.log("Socket desconectado");
@@ -172,48 +172,29 @@ const UsuarioActivoView = () => {
     );
   }
 
-  // Tomamos el primer usuario del array para mostrar (o un usuario vacío si no hay)
-  const usuario = usuarios.length > 0 ? usuarios[0] : null;
-
-  // Valores por defecto para evitar errores
-  const usuarioDefault = {
-    activoAhora: false,
-    alertas: {},
-    usuario: {
-      nombre: "Sin usuario activo",
-      edad: "-",
-      sexo: "-",
-      email: "-",
-      telefono: "-",
-    },
-    eventosCriticos: [],
-    ultimoRegistro: { datos: [] },
-    ultimaUbicacion: { lat: 0, lng: 0 },
-  };
-
-  const usuarioMostrado = usuario
-    ? {
-        ...usuarioDefault,
-        ...usuario,
-        usuario: { ...usuarioDefault.usuario, ...usuario.usuario },
-        ultimoRegistro: usuario.ultimoRegistro || usuarioDefault.ultimoRegistro,
-        ultimaUbicacion: usuario.ultimaUbicacion || usuarioDefault.ultimaUbicacion,
-        alertas: usuario.alertas || usuarioDefault.alertas,
-        eventosCriticos: usuario.eventosCriticos || usuarioDefault.eventosCriticos,
-      }
-    : usuarioDefault;
-
-  // Definir color de estado:
-  let estadoColor = "#F44336"; // rojo por defecto
-
-  if (usuarioMostrado.activoAhora) {
-    const tieneAlerta = usuarioMostrado.alertas && Object.values(usuarioMostrado.alertas).some(Boolean);
-    estadoColor = tieneAlerta ? "#FF9800" : "#4CAF50";
+  if (!usuario) {
+    return (
+      <div style={{ padding: 20, textAlign: "center", fontStyle: "italic", color: "#666" }}>
+        <p>No hay usuarios activos en este momento.</p>
+        <ToastContainer />
+      </div>
+    );
   }
 
-  const ultimaUbicacion = usuarioMostrado.ultimaUbicacion || { lat: 0, lng: 0 };
-  const datosUltimos = usuarioMostrado.ultimoRegistro?.datos || [];
+  // Determinar icono según activo y alertas
+  let iconoMarcador = iconRojo; // Por defecto rojo
+  if (usuario.activoAhora) {
+    if (usuario.eventosCriticos?.length > 0) {
+      iconoMarcador = iconNaranja;
+    } else {
+      iconoMarcador = iconVerde;
+    }
+  }
 
+  const ultimaUbicacion = usuario.ultimaUbicacion || { lat: 0, lng: 0 };
+  const datosUltimos = usuario.activoAhora ? (usuario.ultimoRegistro?.datos || []) : [];
+
+  // Datos para gráficas: si usuario no está activo, se usan arrays vacíos para gráficas vacías
   const frecuencias = datosUltimos.map(d => d.frecuencia || 0);
   const movimientos = datosUltimos.map(d => Math.sqrt((d.x ?? 0) ** 2 + (d.y ?? 0) ** 2 + (d.z ?? 0) ** 2));
   const tiempos = datosUltimos.map(d => new Date(d.timestamp || d.fecha || Date.now()).toLocaleTimeString());
@@ -243,45 +224,18 @@ const UsuarioActivoView = () => {
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
       <div style={{ padding: 20, backgroundColor: "#f0f2f5", minHeight: "100vh" }}>
         <h2>Detalle del Usuario Activo</h2>
-
-        <p>
-          <b>Nombre:</b> {usuarioMostrado.usuario.nombre}{" "}
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              borderRadius: "50%",
-              backgroundColor: estadoColor,
-              marginLeft: 8,
-              verticalAlign: "middle",
-            }}
-            title={
-              usuarioMostrado.activoAhora
-                ? usuarioMostrado.alertas && Object.values(usuarioMostrado.alertas).some(Boolean)
-                  ? "Alerta activa"
-                  : "Activo"
-                : "Inactivo"
-            }
-          />
-        </p>
-        <p><b>Edad:</b> {usuarioMostrado.usuario.edad}</p>
-        <p><b>Sexo:</b> {usuarioMostrado.usuario.sexo}</p>
-        <p><b>Email:</b> {usuarioMostrado.usuario.email}</p>
-        <p><b>Teléfono:</b> {usuarioMostrado.usuario.telefono}</p>
+        <p><b>Nombre:</b> {usuario.usuario.nombre}</p>
+        <p><b>Edad:</b> {usuario.usuario.edad}</p>
+        <p><b>Sexo:</b> {usuario.usuario.sexo}</p>
+        <p><b>Email:</b> {usuario.usuario.email}</p>
+        <p><b>Teléfono:</b> {usuario.usuario.telefono}</p>
 
         <h3>Ubicación Actual</h3>
         {ultimaUbicacion.lat !== 0 && ultimaUbicacion.lng !== 0 ? (
           <GoogleMap mapContainerStyle={containerStyle} center={ultimaUbicacion} zoom={15}>
             <Marker
               position={ultimaUbicacion}
-              icon={
-                estadoColor === "#4CAF50"
-                  ? iconVerde
-                  : estadoColor === "#F44336"
-                  ? iconRojo
-                  : iconNaranja
-              }
+              icon={iconoMarcador}
               onClick={() => setSelected(ultimaUbicacion)}
             />
             {selected && (
@@ -299,24 +253,25 @@ const UsuarioActivoView = () => {
         )}
 
         <h3>Estadísticas de Frecuencia Cardíaca</h3>
-        <p>Eventos Críticos: <b>{usuarioMostrado.eventosCriticos?.length || 0}</b></p>
+        <p>Eventos Críticos: <b>{usuario.eventosCriticos?.length || 0}</b></p>
         <p>Desviación Estándar de FC: <b>{desviacion} bpm</b></p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 30 }}>
+          {/* Pie Chart */}
           <div style={{ flex: "1 1 300px" }}>
             <h4>Distribución de Frecuencia Cardíaca</h4>
             <PieChart width={300} height={300}>
               <Pie
-                data={dataClasificacion}
+                data={usuario.activoAhora ? dataClasificacion : []}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => usuario.activoAhora ? `${name} ${(percent * 100).toFixed(0)}%` : null}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {dataClasificacion.map((entry, index) => (
+                {(usuario.activoAhora ? dataClasificacion : []).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -325,12 +280,13 @@ const UsuarioActivoView = () => {
             </PieChart>
           </div>
 
+          {/* Bar Chart Frecuencia */}
           <div style={{ flex: "1 1 300px" }}>
             <h4>Frecuencia Cardíaca a lo largo del tiempo</h4>
             <BarChart
               width={300}
               height={250}
-              data={dataFrecuenciaTiempo}
+              data={usuario.activoAhora ? dataFrecuenciaTiempo : []}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -342,12 +298,13 @@ const UsuarioActivoView = () => {
             </BarChart>
           </div>
 
+          {/* Bar Chart Movimiento */}
           <div style={{ flex: "1 1 300px" }}>
             <h4>Movimiento a lo largo del tiempo</h4>
             <BarChart
               width={300}
               height={250}
-              data={dataMovimiento}
+              data={usuario.activoAhora ? dataMovimiento : []}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -359,6 +316,7 @@ const UsuarioActivoView = () => {
             </BarChart>
           </div>
 
+          {/* Radar Chart */}
           <div style={{ flex: "1 1 300px" }}>
             <h4>Clasificación Frecuencia Cardíaca</h4>
             <RadarChart
@@ -367,7 +325,7 @@ const UsuarioActivoView = () => {
               outerRadius={100}
               width={300}
               height={300}
-              data={dataRadar}
+              data={usuario.activoAhora ? dataRadar : []}
             >
               <PolarGrid />
               <PolarAngleAxis dataKey="categoria" />
@@ -383,7 +341,6 @@ const UsuarioActivoView = () => {
             </RadarChart>
           </div>
         </div>
-
         <ToastContainer
           position="top-right"
           autoClose={false}
