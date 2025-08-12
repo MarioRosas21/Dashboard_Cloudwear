@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 
@@ -34,6 +35,16 @@ function getDb() {
   const db = mongoose.connection.db;
   if (!db) throw new Error('Base de datos no disponible aún');
   return db;
+}
+
+// Si está en producción, servir React build
+if (process.env.NODE_ENV === "production") {
+  const buildPath = path.join(__dirname, "../build");
+  app.use(express.static(buildPath));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(buildPath, "index.html"));
+  });
 }
 
 // Conexión a MongoDB y arranque del servidor
@@ -350,7 +361,6 @@ app.get('/api/estadisticas', async (req, res) => {
     res.status(500).json({ error: 'Error al calcular estadísticas' });
   }
 });
-
 
 // Tu endpoint actual (puedes dejarlo para pruebas o fallback)
 app.get("/api/usuario-activo", async (req, res) => {
