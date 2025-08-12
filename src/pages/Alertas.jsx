@@ -7,59 +7,79 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
-import "../styles/main.css"; // Asegúrate de importar los estilos
+import "../styles/main.css";
 
-const ritmoAlto = [
-  { nombre: "Juan", valor: 135 },
-  { nombre: "Ana", valor: 130 },
-  { nombre: "Luis", valor: 128 },
-  { nombre: "Carlos", valor: 125 }
-];
+const Alertas = ({ usuarios }) => {
+  const alertasAltas = [];
+  const alertasBajas = [];
 
-const ritmoBajo = [
-  { nombre: "Pedro", valor: 55 },
-  { nombre: "Lucía", valor: 52 },
-  { nombre: "Sofía", valor: 50 },
-  { nombre: "Andrés", valor: 48 }
-];
+  usuarios.forEach((usuario) => {
+    Object.values(usuario.datos).forEach((arr) => {
+      arr.forEach((dato) => {
+        const item = {
+          nombre: usuario.nombre,
+          area: usuario.area,
+          frecuencia: dato.frecuencia,
+          fecha: new Date(dato.timestamp).toLocaleString(),
+        };
+        if (dato.frecuencia > 85) alertasAltas.push(item);
+        else if (dato.frecuencia < 60) alertasBajas.push(item);
+      });
+    });
+  });
 
-const Alertas = () => {
   return (
     <div className="page-container">
       <h2 className="page-title">Alertas de Ritmo Cardíaco</h2>
 
+      {/* Altas */}
       <div className="chart-section">
         <h3 className="chart-title">Ritmo Cardíaco Alto</h3>
-        <div className="chart-box">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={ritmoAlto}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nombre" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="valor" fill="#ff4d4f" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {alertasAltas.length > 0 ? (
+          <div className="chart-box">
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={alertasAltas}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value, name, props) => [`${value} bpm`, "Frecuencia"]}
+                  labelFormatter={(label) => `Usuario: ${label}`}
+                />
+                <Legend />
+                <Bar dataKey="frecuencia" fill="#ff4d4f" name="Altas (>85 bpm)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p>No hay alertas de ritmo alto.</p>
+        )}
       </div>
 
+      {/* Bajas */}
       <div className="chart-section">
         <h3 className="chart-title">Ritmo Cardíaco Bajo</h3>
-        <div className="chart-box">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={ritmoBajo}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nombre" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="valor" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {alertasBajas.length > 0 ? (
+          <div className="chart-box">
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={alertasBajas}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value, name, props) => [`${value} bpm`, "Frecuencia"]}
+                  labelFormatter={(label) => `Usuario: ${label}`}
+                />
+                <Legend />
+                <Bar dataKey="frecuencia" fill="#1890ff" name="Bajas (<60 bpm)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p>No hay alertas de ritmo bajo.</p>
+        )}
       </div>
     </div>
   );

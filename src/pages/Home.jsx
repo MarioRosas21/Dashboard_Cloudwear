@@ -1,36 +1,83 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import WearMap from "../components/WearMap";
 import DetalleUsuario from "./DetalleUsuario";
+import Alertas from "./Alertas";
+import EstadisticasGenerales from "./EstadisticasGenerales";
+import api from "../services/api";
 import "../styles/main.css";
-import { LoadScript } from "@react-google-maps/api"; 
+import { LoadScript } from "@react-google-maps/api";
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyDKiC0rCfhrbZA6a_XQjxENvPRSHxUnLqw";
+
+const initialCenter = {
+  lat: 20.00855,
+  lng: -99.342812,
+};
 
 const Home = () => {
+  const [usuarios, setUsuarios] = useState([]);
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-return (
-  <LoadScript googleMapsApiKey="AIzaSyDKiC0rCfhrbZA6a_XQjxENvPRSHxUnLqw">
-    <div className="dashboard-container">
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        const res = await api.get("/datos");
+        setUsuarios(res.data);
+      } catch {
+        setError("Error cargando datos");
+      } finally {
+        setLoading(false);
+      }
+    };
+    cargarDatos();
+  }, []);
 
-      <div className="map-section">
-        <WearMap onSelectUser={setUsuarioSeleccionado} />
-      </div>
+  if (loading) {
+    return <div className="loading">Cargando datos...</div>;
+  }
 
-      <div className="details-section">
-        {usuarioSeleccionado ? (
-          <DetalleUsuario data={usuarioSeleccionado} />
-        ) : (
-          <div className="placeholder">
-            <h2>Selecciona un punto en el mapa</h2>
-            <p>Haz clic sobre un marcador para ver los detalles del usuario y sus métricas.</p>
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+
+  return (
+    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+      <div className="dashboard-container">
+
+        {/* Mapa a la izquierda */}
+        <div className="map-section">
+          <WearMap
+            datosUsuarios={usuarios}
+            center={initialCenter}
+            onSelectUser={setUsuarioSeleccionado}
+          />
+        </div>
+
+        {/* Panel derecho con Detalles, Alertas y Estadísticas */}
+        <div className="details-section">
+
+          <div className="panel-section">
+            {usuarioSeleccionado ? (
+              <DetalleUsuario usuario={usuarioSeleccionado} />
+            ) : (
+              <div className="placeholder">
+                <h2>Selecciona un punto en el mapa</h2>
+                <p>Haz clic sobre un marcador para ver los detalles del usuario y sus métricas.</p>
+              </div>
+            )}
           </div>
-        )}
+
+
+          <div className="panel-section">
+            <EstadisticasGenerales usuarios={usuarios} />
+          </div>
+
+        </div>
       </div>
-      
-    </div>
-  </LoadScript>
-);
-
-
+    </LoadScript>
+  );
 };
 
 export default Home;
