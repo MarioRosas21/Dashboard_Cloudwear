@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import WearMap from "../components/WearMap";
 import DetalleUsuario from "./DetalleUsuario";
-import Alertas from "./Alertas";
 import EstadisticasGenerales from "./EstadisticasGenerales";
 import api from "../services/api";
 import "../styles/main.css";
